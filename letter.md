@@ -43,13 +43,6 @@
 熟悉服务器硬件
 
 
- ## 开源项目
-（对于程序员来讲，没有什么比Show me the code能有说服力了）
-
- - [STU](http://github.com/yourname/projectname)：项目的简要说明，Star和Fork数多的可以注明
- - [WXYZ](http://github.com/yourname/projectname)：项目的简要说明，Star和Fork数多的可以注明
-
-
 # 技能清单
 
 以下均为我熟练使用的技能
