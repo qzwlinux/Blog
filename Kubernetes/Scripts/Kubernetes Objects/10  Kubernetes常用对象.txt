@@ -1,0 +1,1203 @@
+
+10 Kubernetes常用对象：
+
+
+*****************************************************************
+1、Node
+*****************************************************************
+
+查看集群所有Node结点，即负载结点：
+[root@master02 ~]# kubectl get nodes
+NAME     STATUS   ROLES    AGE   VERSION
+node01   Ready    <none>   80d   v1.12.2
+node02   Ready    <none>   80d   v1.12.2
+node03   Ready    <none>   80d   v1.12.2
+node04   Ready    <none>   80d   v1.12.2
+
+查看指定结点的详情情况：
+[root@master02 ~]# kubectl describe node node01
+[root@master02 ~]# kubectl get node node01 -o yaml
+
+给指定Node打标签：
+[root@master02 ~]# kubectl label node node01 sortName=sort01
+[root@master02 ~]# kubectl describe node node01
+[root@master02 ~]# kubectl label node node01 sortName-
+[root@master02 ~]# kubectl describe node node01
+
+给指定Node打污点：
+[root@master02 ~]# kubectl taint node node1 runService=efk:NoSchedule
+[root@master02 ~]# kubectl taint node node1 runService=efk:NoExecute
+[root@master02 ~]# kubectl taint node node1 notService=nginx:NoSchedule
+[root@master02 ~]# kubectl taint node node1 notService=nginx:NoExecute
+[root@master02 ~]# kubectl describe node node01
+
+[root@master02 ~]# kubectl taint node node1 runService:NoSchedule-
+[root@master02 ~]# kubectl taint node node1 notService:NoExecute-
+[root@master02 ~]# kubectl taint node node1 runService-
+[root@master02 ~]# kubectl describe node node01
+
+Node维护模式：
+[root@master02 ~]# kubectl cordon   node02
+[root@master02 ~]# kubectl uncordon node02
+[root@master02 ~]# kubectl drain    node02
+cordon    设置结点不可调度
+uncordon  设置结点可调度
+drain     结点结点维护状态，期间驱赶Pod到其它结点
+
+
+
+
+
+*****************************************************************
+2、Namespace
+*****************************************************************
+
+查看集群所有的Namespace：
+[root@master02 ~]# kubectl get ns
+[root@master02 ~]# kubectl get namespace
+NAME          STATUS   AGE
+default       Active   87d
+kube-public   Active   87d
+kube-system   Active   87d
+
+创建命名空间：
+[root@master02 ~]# kubectl create namespace my-namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: your-namespace
+
+[root@master02 ~]# kubectl create -f my-namespace.yaml
+
+删除命名空间：
+[root@master02 ~]# kubectl delete namespaces new-namespace
+
+指定命名空间，查看其它资源对象：
+[root@master02 ~]# kubectl get pods -n kube-system
+[root@master02 ~]# kubectl get pods -n default
+[root@master02 ~]# kubectl get pods --all-namespace
+[root@master02 ~]# kubectl get configmap --all-namespace
+
+
+
+
+
+*****************************************************************
+3、Resource Quota/LimitRange
+*****************************************************************
+
+[root@master02 ~]# vim my-resourcequota.yaml
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  namespace: my-namespace
+  name: my-resourcequota
+  labels:
+    app: resourcequota
+spec:
+  hard:
+    pods: 10
+    requests.cpu: 2
+    requests.memory: 512Mi
+    limits.cpu: 5
+    limits.memory: 16Gi
+    configmaps: 20
+    persistentvolumeclaims: 20
+    replicationcontrollers: 20
+    secrets: 20
+    services: 50
+
+[root@master02 ~]# kubectl apply -f my-resourcequota.yaml
+[root@master02 ~]# kubectl get ResourceQuota
+[root@master02 ~]# kubectl get ResourceQuota -o yaml
+[root@master02 ~]# kubectl describe ResourceQuota my-resourcequota
+
+
+[root@master02 ~]# vim my-limitrange.yaml
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: my-limitrange
+spec:
+  limits:
+  - max:
+      cpu: "2"
+      memory: 1Gi
+    min:
+      cpu: 200m
+      memory: 6Mi
+    type: Pod
+  - default:
+      cpu: 300m
+      memory: 200Mi
+    defaultRequest:
+      cpu: 200m
+      memory: 100Mi
+    max:
+      cpu: "2"
+      memory: 1Gi
+    min:
+      cpu: 100m
+      memory: 3Mi
+    type: Container
+
+[root@master02 ~]# kubectl apply -f my-limitrange.yaml
+[root@master02 ~]# kubectl get LimitRange
+[root@master02 ~]# kubectl get LimitRange -o yaml
+[root@master02 ~]# kubectl describe LimitRange my-limitrange
+
+
+*****************************************************************
+4、Label/Selector
+*****************************************************************
+
+[root@master02 ~]# kubectl get pods -l environment=production,tier=frontend
+[root@master02 ~]# kubectl get pods -l 'environment in (production),tier in (frontend)'
+[root@master02 ~]# kubectl get pods -l 'environment in (production, qa)'
+[root@master02 ~]# kubectl get pods -l 'environment,environment notin (frontend)'
+
+在YAML文件里打标签：
+apiVersion: v1
+kind: Pod
+metadata:
+  namespace: my-namespace
+  name: pod01
+  labels:
+    app: nginx
+    version: 1.13
+    env:prd
+
+
+命令给资源打标签：
+[root@master02 ~]# kubectl label pod pod01 podname=nginx
+[root@master02 ~]# kubectl describe pod pod01
+[root@master02 ~]# kubectl label pod pod01 podname-
+[root@master02 ~]# kubectl describe pod pod01
+
+
+*****************************************************************
+5、ConfigMap/Secret
+*****************************************************************
+
+创建ConfigMap：
+
+1、YAML方式：
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-cfg
+  namespace: default
+data:
+  cache_host: memcached-gcxt
+  cache_port: "11211"
+  cache_prefix: gcxt
+  my.cnf: |
+    [mysqld]
+    log-bin = mysql-bin
+  app.properties: |
+    property.1 = value-1
+    property.2 = value-2
+    property.3 = value-3
+
+
+在yaml文件中，配置文件以key-value键值对的形式保存，当然也可以直接放一个完整的配置文件，
+在下面的示例中，cache_hst、cache_port、cache_prefix即是key-value键值对，
+而app.properties和my.cnf都是配置文件
+
+[root@master02 ~]# kubectl create -f test-cfg.yml
+
+2、命令方式，一般不建议，找不到配置信息
+
+直接将configs目录下的所有配置文件创建为一个ConfigMap：
+[root@master02 ~]# kubectl create configmap test-config --from-file=./configs
+
+直接将一个配置文件创建为一个ConfigMap
+[root@master02 ~]# kubectl create configmap test-config2 --from-file=./configs/db.conf --from-file=./configs/cache.conf
+
+在使用kubectl创建的时候，通过在命令行直接传递键值对创建
+[root@master02 ~]# kubectl create configmap test-config3 --from-literal=db.host=10.5.10.116 --from-listeral=db.port='3306'
+
+
+查看创建的ConfigMap：
+[root@master02 ~]# kubectl get configmaps
+[root@master02 ~]# kubectl get configmap test-config -o yaml
+[root@master02 ~]# kubectl describe configmap test-config
+
+
+
+使用ConfigMap
+
+ConfigMap文件：
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: special-config
+  namespace: default
+data:
+  special.how: very
+  special.type: charm
+
+
+
+方式1，传值方式
+
+Pod示例
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dapi-test-pod
+spec:
+  containers:
+  - name: test-container
+    image: gcr.io/google_containers/busybox
+    command: [ "/bin/sh", "-c", "env" ]
+    env:
+    - name: SPECIAL_LEVEL_KEY
+          valueFrom:
+            configMapKeyRef:
+              name: special-config
+              key: special.how
+    - name: SPECIAL_TYPE_KEY
+          valueFrom:
+            configMapKeyRef:
+              name: special-config
+              key: special.type
+  restartPolicy: Never
+
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dapi-test-pod
+spec:
+  containers:
+    - name: test-container
+      image: gcr.io/google_containers/busybox
+      command: [ "/bin/sh", "-c", "env" ]
+      env:
+        - name: CACHE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: test-cfg
+              key: cache_host
+              optional: true
+  restartPolicy: Never
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dapi-test-pod
+spec:
+  containers:
+    - name: test-container
+      image: gcr.io/google_containers/busybox
+      command: [ "/bin/sh", "-c", "echo $(SPECIAL_LEVEL_KEY) $(SPECIAL_TYPE_KEY)" ]
+      env:
+        - name: SPECIAL_LEVEL_KEY
+          valueFrom:
+            configMapKeyRef:
+              name: special-config
+              key: special.how
+        - name: SPECIAL_TYPE_KEY
+          valueFrom:
+            configMapKeyRef:
+              name: special-config
+              key: special.type
+  restartPolicy: Never
+
+
+方式2，挂载方式
+使用volume将ConfigMap作为文件或目录直接挂载，其中每一个key-value键值对都会生成一个文件，key为文件名，value为内容
+
+
+将上面创建的ConfigMap直接挂载至pod的/etc/config目录下
+Pod示例
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dapi-test-pod
+spec:
+  containers:
+    - name: test-container
+      image: gcr.io/google_containers/busybox
+      command: [ "/bin/sh", "-c", "cat /etc/config/special.how" ]
+      volumeMounts:
+      - name: config-volume
+        mountPath: /etc/config
+  volumes:
+    - name: config-volume
+      configMap:
+        name: special-config
+  restartPolicy: Never
+
+
+只将ConfigMap的special.how这个key挂载到/etc/config目录下的一个相对路径path/to/special-key，如果存在同名文件，直接覆盖。其他的key不挂载
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dapi-test-pod
+spec:
+  containers:
+    - name: test-container
+      image: gcr.io/google_containers/busybox
+      command: [ "/bin/sh","-c","cat /etc/config/path/to/special-key" ]
+      volumeMounts:
+      - name: config-volume
+        mountPath: /etc/config
+  volumes:
+    - name: config-volume
+      configMap:
+        name: special-config
+        items:
+        - key: special.how
+          path: path/to/special-key
+  restartPolicy: Never
+
+
+最后需要说明两点：
+1、ConfigMap必须在Pod之前创建
+2、只有与当前ConfigMap在同一个namespace内的pod才能使用这个ConfigMap，换句话说，ConfigMap不能跨命名空间调用
+
+
+
+
+
+Secret类型
+
+Secret有三种类型：
+
+1、Opaque：使用base64编码存储信息，可以通过base64 --decode解码获得原始数据，因此安全性弱。
+2、kubernetes.io/dockerconfigjson：用于存储docker registry的认证信息。
+3、kubernetes.io/service-account-token：用于被 serviceaccount 引用。serviceaccout 创建时 Kubernetes 会默认创建对应的 secret。Pod 如果使用了 serviceaccount，对应的 secret 会自动挂载到 Pod 的 /run/secrets/kubernetes.io/serviceaccount目录中。
+
+
+创建Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysecret
+type: Opaque
+data:
+  username: YWRtaW4=
+  password: MWYyZDFlMmU2N2Rm
+
+[root@master02 ~]# kubectl create -f secret.yaml
+[root@master02 ~]# kubectl get secret
+[root@master02 ~]# kubectl get secret mysecret -o yaml
+
+
+Secret的使用
+创建好Secret之后，可以通过两种方式使用：
+1、以Volume方式
+2、以环境变量方式
+
+类同于configmap
+
+
+*****************************************************************
+6、Pod
+*****************************************************************
+
+
+kubernetes创建pod的yaml文件，参数说明
+
+apiVersion: v1 #指定api版本，此值必须在kubectl apiversion中  
+kind: Pod #指定创建资源的角色/类型  
+metadata: #资源的元数据/属性  
+  name: web04-pod #资源的名字，在同一个namespace中必须唯一  
+  labels: #设定资源的标签
+    k8s-app: apache  
+    version: v1  
+    kubernetes.io/cluster-service: "true"  
+  annotations:            #自定义注解列表  
+    - name: String        #自定义注解名字  
+spec:#specification of the resource content 指定该资源的内容  
+  restartPolicy: Always #表明该容器一直运行，默认k8s的策略，在此容器退出后，会立即创建一个相同的容器  
+  nodeSelector:     #节点选择，先给主机打标签kubectl label nodes kube-node1 zone=node1  
+    zone: node1  
+  containers:  
+  - name: web04-pod #容器的名字  
+    image: web:apache #容器使用的镜像地址  
+    imagePullPolicy: Never #三个选择Always、Never、IfNotPresent，每次启动时检查和更新（从registery）images的策略，
+                           # Always，每次都检查
+                           # Never，每次都不检查（不管本地是否有）
+                           # IfNotPresent，如果本地有就不检查，如果没有就拉取
+    command: ['sh'] #启动容器的运行命令，将覆盖容器中的Entrypoint,对应Dockefile中的ENTRYPOINT  
+    args: ["$(str)"] #启动容器的命令参数，对应Dockerfile中CMD参数  
+    env: #指定容器中的环境变量  
+    - name: str #变量的名字  
+      value: "/etc/run.sh" #变量的值  
+    resources: #资源管理
+      requests: #容器运行时，最低资源需求，也就是说最少需要多少资源容器才能正常运行  
+        cpu: 0.1 #CPU资源（核数），两种方式，浮点数或者是整数+m，0.1=100m，最少值为0.001核（1m）
+        memory: 32Mi #内存使用量  
+      limits: #资源限制  
+        cpu: 0.5  
+        memory: 32Mi  
+    ports:  
+    - containerPort: 80 #容器开发对外的端口
+      name: httpd  #名称
+      protocol: TCP  
+    livenessProbe: #pod内容器健康检查的设置
+      httpGet: #通过httpget检查健康，返回200-399之间，则认为容器正常  
+        path: / #URI地址  
+        port: 80  
+        #host: 127.0.0.1 #主机地址  
+        scheme: HTTP  
+      initialDelaySeconds: 180 #表明第一次检测在容器启动后多长时间后开始  
+      timeoutSeconds: 5 #检测的超时时间  
+      periodSeconds: 15  #检查间隔时间  
+      #也可以用这种方法  
+      #exec: 执行命令的方法进行监测，如果其退出码不为0，则认为容器正常  
+      #  command:  
+      #    - cat  
+      #    - /tmp/health  
+      #也可以用这种方法  
+      #tcpSocket: //通过tcpSocket检查健康   
+      #  port: number   
+    lifecycle: #生命周期管理  
+      postStart: #容器运行之前运行的任务  
+        exec:  
+          command:  
+            - 'sh'  
+            - 'yum upgrade -y'  
+      preStop:#容器关闭之前运行的任务  
+        exec:  
+          command: ['service httpd stop']  
+    volumeMounts:  
+    - name: volume #挂载设备的名字，与volumes[*].name 需要对应    
+      mountPath: /data #挂载到容器的某个路径下  
+      readOnly: True  
+  volumes: #定义一组挂载设备  
+  - name: volume #定义一个挂载设备的名字  
+    #meptyDir: {}  
+    hostPath:  
+      path: /opt #挂载设备类型为hostPath，路径为宿主机下的/opt,这里设备类型支持很多种 
+
+
+
+例子1：
+apiVersion: v1
+kind: Pod
+metadata:
+  name: liveness-exec-pod
+  namespace: default
+  labels:
+    name: myapp
+spec:
+  containers:
+  - name: livess-exec
+    image: busybox:latest
+    imagePullPolicy: IfNotPresent
+    command: ["/bin/sh","-c","touch /tmp/test; sleep 30; rm -f /tmp/test; sleep 3600"]
+    livenessProbe:
+      exec:
+        command: ["test","-e","/tmp/test"]
+      initialDelaySeconds: 1
+      periodSeconds: 3
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: liveness-httpget-pod
+  namespace: default
+  labels:
+    name: myapp
+spec:
+  containers:
+  - name: livess-httpget
+    image: ikubernetes/myapp:v1
+    ports:
+    - name: http
+      containerPort: 80
+    imagePullPolicy: IfNotPresent
+    livenessProbe:
+      httpGet:
+        port: http
+        path: /index.html
+      initialDelaySeconds: 1
+      periodSeconds: 3
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: lifecycle-poststart
+  namespace: default
+  labels:
+    name: myapp
+    tier: appfront
+spec:
+  containers:
+  - name: lifecycle-poststart-pod
+    image: nginx
+    imagePullPolicy: IfNotPresent
+    lifecycle:
+      postStart:
+        exec:
+          command: ["/bin/sh","-c","echo Home+Page >> /usr/share/message"]
+      preStop:
+        exec:
+          command: ["/usr/sbin/nginx","-s","quit"]
+
+
+
+
+node affinity举例
+设置节点label：
+[root@master02 ~]# kubectl label nodes bjo-ep-dep-040.dev.fwmrm.net cpu=high
+node "bjo-ep-dep-040.dev.fwmrm.net" labeled
+[root@master02 ~]# kubectl label nodes bjo-ep-svc-017.dev.fwmrm.net cpu=mid
+node "bjo-ep-svc-017.dev.fwmrm.net" labeled
+[root@master02 ~]# kubectl label nodes bjo-rpt-re-002.dev.fwmrm.net cpu=low
+node "bjo-rpt-re-002.dev.fwmrm.net" labeled
+
+部署pod的预期是到非master节点（role!=master）、且CPU高配的机器上(cpu=high)。
+查看满足条件节点：
+[root@master02 ~]# kubectl get nodes -l 'cpu=high, role!=master'
+NAME                           STATUS    AGE       VERSION
+bjo-ep-dep-040.dev.fwmrm.net   Ready     41d       v1.7.1
+
+pod.yaml文件内容如下：
+apiVersion: v1
+kind: Pod
+metadata:
+name: nginx
+labels:
+env: test
+spec:
+affinity:
+nodeAffinity:
+  requiredDuringSchedulingIgnoredDuringExecution:
+    nodeSelectorTerms:
+    - matchExpressions:
+      - key: role
+        operator: NotIn
+        values:
+        - master
+  preferredDuringSchedulingIgnoredDuringExecution:
+  - weight: 1
+    preference:
+      matchExpressions:
+      - key: cpu
+        operator: In
+        values:
+        - high
+containers:
+- name: nginx
+image: nginx
+imagePullPolicy: IfNotPresent
+
+检查结果符合预期，pod nginx成功部署到非master节点且CPU高配的机器上。
+[root@master02 ~]# kubectl get po  nginx -o wide
+NAME      READY     STATUS    RESTARTS   AGE       IP             NODE
+nginx     1/1       Running   0          32s       10.244.2.185   bjo-ep-dep-040.dev.fwmrm
+
+
+pod亲和性（Inter-pod affinity）与反亲和性（anti-affinity）
+
+
+spec:
+replicas: 1
+template:
+metadata:
+  labels:
+    app: is
+spec:
+  affinity:
+    podAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: app
+            operator: NotIn
+            values:
+            - solr
+        topologyKey: kubernetes.io/hostname
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 1
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: app
+              operator: In
+              values:
+              - oltp
+          topologyKey: beta.kubernetes.io/os
+
+
+Pod相关的说明：
+参照华为云CCE：https://support.huaweicloud.com/usermanual-cce/cce_01_0051.html
+非常详细
+
+
+*****************************************************************
+7、RC/RS
+*****************************************************************
+
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: nginx
+spec:
+  replicas: 3
+  selector:
+    app: nginx
+  template:
+    metadata:
+      name: nginx
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80
+
+
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: frontend
+  labels:
+    app: guestbook
+    tier: frontend
+spec:
+  # this replicas value is default
+  # modify it according to your case
+  replicas: 3
+  selector:
+    matchLabels:
+      tier: frontend
+    matchExpressions:
+      - {key: tier, operator: In, values: [frontend]}
+  template:
+    metadata:
+      labels:
+        app: guestbook
+        tier: frontend
+    spec:
+      containers:
+      - name: php-redis
+        image: gcr.io/google_samples/gb-frontend:v3
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        env:
+        - name: GET_HOSTS_FROM
+          value: dns
+          # If your cluster config does not include a dns service, then to
+          # instead access environment variables to find service host
+          # info, comment out the 'value: dns' line above, and uncomment the
+          # line below.
+          # value: env
+        ports:
+        - containerPort: 80
+
+
+
+*****************************************************************
+8、Deployment
+*****************************************************************
+
+创建一个名为nginx-deployment.yaml的描述文件。其中，nginx-deployment.yaml为自定义名称，您可以随意命名。
+[root@master02 ~]# vi demo-deployment.yaml
+
+描述文件内容如下。此处仅为示例
+
+
+apiVersion: extensions/v1beta1   #接口版本
+kind: Deployment                 #接口类型
+metadata:
+  name: cango-demo               #Deployment名称
+  namespace: cango-prd           #命名空间
+  labels:
+    app: cango-demo              #标签
+spec:
+  replicas: 3
+   strategy:
+    rollingUpdate:  ##由于replicas为3,则整个升级,pod个数在2-4个之间
+      maxSurge: 1      #滚动升级时会先启动1个pod
+      maxUnavailable: 1 #滚动升级时允许的最大Unavailable的pod个数
+  template:         
+    metadata:
+      labels:
+        app: cango-demo  #模板名称必填
+    sepc: #定义容器模板，该模板可以包含多个容器
+      containers:                                                                   
+        - name: cango-demo                                                           #镜像名称
+          image: swr.cn-east-2.myhuaweicloud.com/cango-prd/cango-demo:0.0.1-SNAPSHOT #镜像地址
+          command: [ "/bin/sh","-c","cat /etc/config/path/to/special-key" ]    #启动命令
+          args:                                                                #启动参数
+            - '-storage.local.retention=$(STORAGE_RETENTION)'
+            - '-storage.local.memory-chunks=$(STORAGE_MEMORY_CHUNKS)'
+            - '-config.file=/etc/prometheus/prometheus.yml'
+            - '-alertmanager.url=http://alertmanager:9093/alertmanager'
+            - '-web.external-url=$(EXTERNAL_URL)'
+    #如果command和args均没有写，那么用Docker默认的配置。
+    #如果command写了，但args没有写，那么Docker默认的配置会被忽略而且仅仅执行.yaml文件的command（不带任何参数的）。
+    #如果command没写，但args写了，那么Docker默认配置的ENTRYPOINT的命令行会被执行，但是调用的参数是.yaml中的args。
+    #如果如果command和args都写了，那么Docker默认的配置被忽略，使用.yaml的配置。
+          imagePullPolicy: IfNotPresent  #如果不存在则拉取
+          livenessProbe:       #表示container是否处于live状态。如果LivenessProbe失败，LivenessProbe将会通知kubelet对应的container不健康了。随后kubelet将kill掉container，并根据RestarPolicy进行进一步的操作。默认情况下LivenessProbe在第一次检测之前初始化值为Success，如果container没有提供LivenessProbe，则也认为是Success；
+            httpGet:
+              path: /health #如果没有心跳检测接口就为/
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 60 ##启动后延时多久开始运行检测
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+            readinessProbe:
+          readinessProbe:
+            httpGet:
+              path: /health #如果没有心跳检测接口就为/
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 30 ##启动后延时多久开始运行检测
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+          resources:              ##CPU内存限制
+            requests:
+              cpu: 2
+              memory: 2048Mi
+            limits:
+              cpu: 2
+              memory: 2048Mi
+          env:                    ##通过环境变量的方式，直接传递pod=自定义Linux OS环境变量
+            - name: LOCAL_KEY     #本地Key
+              value: value
+            - name: CONFIG_MAP_KEY  #局策略可使用configMap的配置Key，
+              valueFrom:
+                configMapKeyRef:
+                  name: special-config   #configmap中找到name为special-config
+                  key: special.type      #找到name为special-config里data下的key
+          ports:
+            - name: http
+              containerPort: 8080 #对service暴露端口
+          volumeMounts:     #挂载volumes中定义的磁盘
+          - name: log-cache
+            mount: /tmp/log
+          - name: sdb       #普通用法，该卷跟随容器销毁，挂载一个目录
+            mountPath: /data/media    
+          - name: nfs-client-root    #直接挂载硬盘方法，如挂载下面的nfs目录到/mnt/nfs
+            mountPath: /mnt/nfs
+          - name: example-volume-config  #高级用法第1种，将ConfigMap的log-script,backup-script分别挂载到/etc/config目录下的一个相对路径path/to/...下，如果存在同名文件，直接覆盖。
+            mountPath: /etc/config       
+          - name: rbd-pvc                #高级用法第2中，挂载PVC(PresistentVolumeClaim)
+
+#使用volume将ConfigMap作为文件或目录直接挂载，其中每一个key-value键值对都会生成一个文件，key为文件名，value为内容，
+  volumes:  # 定义磁盘给上面volumeMounts挂载
+  - name: log-cache
+    emptyDir: {}
+  - name: sdb  #挂载宿主机上面的目录
+    hostPath:
+      path: /any/path/it/will/be/replaced
+  - name: example-volume-config  # 供ConfigMap文件内容到指定路径使用
+    configMap:
+      name: example-volume-config  #ConfigMap中名称
+      items:
+      - key: log-script           #ConfigMap中的Key
+        path: path/to/log-script  #指定目录下的一个相对路径path/to/log-script
+      - key: backup-script        #ConfigMap中的Key
+        path: path/to/backup-script  #指定目录下的一个相对路径path/to/backup-script
+  - name: nfs-client-root         #供挂载NFS存储类型
+    nfs:
+      server: 10.42.0.55          #NFS服务器地址
+      path: /opt/public           #showmount -e 看一下路径
+  - name: rbd-pvc                 #挂载PVC磁盘
+    persistentVolumeClaim:
+      claimName: rbd-pvc1         #挂载已经申请的pvc磁盘
+
+
+
+字段名称						字段说明
+
+apiVersion						表示API的版本号。
+
+说明：集群版本为1.9之前的无状态应用apiVersion格式为extensions/v1beta1，1.9之后的集群兼容extensions/v1beta1和apps/v1两种格式Version，请根据集群版本输入。
+
+kind							创建的对象类别。
+metadata						资源对象的元数据定义。
+name							deployment的名称。
+Spec							用户对deployment的详细描述的主体部分都在spec中给出。
+replicas						实例数量
+selector						定义Deployment可管理的容器实例。
+strategy						升级类型。当前支持两种升级方式，默认为滚动升级
+								RollingUpdate：滚动升级。ReplaceUpdate：替换升级
+
+template						描述创建的容器实例详细信息
+metadata						元数据
+labels							metadata.labels定义容器标签。
+spec:							
+	containers
+	image（必选）：容器镜像名称。
+	imagePullPolicy（可选）：获取镜像的策略，可选值包括Always（每次都尝试重新下载镜像）、Never（仅使用本地镜像）、
+						IfNotPresent（如果本地有该镜像，则使用本地镜像，本地不存在时下载镜像），默认为Always。
+	name（必选）：容器名称。
+
+imagePullSecrets	Pull镜像时使用的secret名称。若使用私有镜像，该参数为必选。
+					需要Pull SWR容器镜像仓库的镜像时，参数值固定为default-secret。
+					当Pull第三方镜像仓库的镜像时，需设置为创建的secret名称。
+
+
+创建deployment。
+[root@master02 ~]# kubectl create -f demo-deployment.yaml
+
+
+几个重要参数说明:
+maxSurge与maxUnavailable
+
+maxSurge: 1 表示滚动升级时会先启动1个pod
+maxUnavailable: 1 表示滚动升级时允许的最大Unavailable的pod个数
+由于replicas为3,则整个升级,pod个数在2-4个之间
+terminationGracePeriodSeconds
+k8s将会给应用发送SIGTERM信号，可以用来正确、优雅地关闭应用,默认为30秒。
+如果需要更优雅地关闭，则可以使用k8s提供的pre-stop lifecycle hook 的配置声明，将会在发送SIGTERM之前执行。
+
+
+livenessProbe与readinessProbe
+
+livenessProbe是kubernetes认为该pod是存活的，不存在则需要kill掉，然后再新启动一个，以达到replicas指定的个数。
+readinessProbe是kubernetes认为该pod是启动成功的，这里根据每个应用的特性，自己去判断，可以执行command，也可以进行httpGet。比如对于使用java web服务的应用来说，并不是简单地说tomcat启动成功就可以对外提供服务的，还需要等待spring容器初始化，数据库连接连接上等等。对于spring boot应用，默认的actuator带有/health接口，可以用来进行启动成功的判断。
+其中readinessProbe.initialDelaySeconds可以设置为系统完全启动起来所需的最少时间，livenessProbe.initialDelaySeconds可以设置为系统完全启动起来所需的最大时间+若干秒。
+
+
+
+
+
+
+
+
+*****************************************************************
+9、StatefullSet
+*****************************************************************
+
+创建一个名为etcd-statefulset.yaml的文件。
+其中，etcd-statefulset.yaml为自定义名称，您可以随意命名。
+
+[root@master02 ~]# vi etcd-statefulset.yaml
+
+以下内容仅为示例，若需要了解statefulset的详细内容，请参考kubernetes官方文档。
+
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: etcd
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: etcd
+  serviceName: etcd-svc
+  template:
+    metadata:
+      labels:
+        app: etcd
+    spec:
+      containers:
+      - env:
+        - name: PAAS_APP_NAME
+          value: tesyhhj
+        - name: PAAS_NAMESPACE
+          value: default
+        - name: PAAS_PROJECT_ID
+          value: 9632fae707ce4416a0ab1e3e121fe555
+        image: etcd
+        imagePullPolicy: IfNotPresent
+        name: etcd-container
+  updateStrategy:
+    type: RollingUpdate
+vi etcd-headless.yaml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: etcd
+  name: etcd-svc
+spec:
+  clusterIP: None
+  ports:
+  - name: etcd-svc
+    port: 3120
+    protocol: TCP
+    targetPort: 3120
+  selector:
+    app: etcd
+  sessionAffinity: None
+  type: ClusterIP
+
+创建工作负载以及对应headless服务。
+[root@master02 ~]# kubectl create -f etcd-statefulset.yaml
+[root@master02 ~]# kubectl create -f etcd-headless.yaml
+
+
+
+
+
+*****************************************************************
+10、DaemonSet
+*****************************************************************
+
+典型使用场景：
+运行集群存储守护进程，如glusterd、ceph。
+运行集群日志收集守护进程，如fluentd、logstash。
+运行节点监控守护进程
+
+创建DaemonSet
+以下是DaemonSet的示例spec文件，运行fluentd-elasticsearch image：
+
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluentd-elasticsearch
+  namespace: kube-system
+  labels:
+    k8s-app: fluentd-logging
+spec:
+  selector:
+    matchLabels:
+      name: fluentd-elasticsearch
+  template:
+    metadata:
+      labels:
+        name: fluentd-elasticsearch
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      containers:
+      - name: fluentd-elasticsearch
+        image: k8s.gcr.io/fluentd-elasticsearch:1.20
+        resources:
+          limits:
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: varlog
+        hostPath:
+          path: /var/log
+      - name: varlibdockercontainers
+        hostPath:
+		  path: /var/lib/docker/containers
+
+
+*****************************************************************
+11、Service
+*****************************************************************
+
+1、创建一个基本功能的Service
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp
+spec:
+  ports:
+  - port: 8081
+    targetPort: 8080
+  selector:
+    app: webapp
+
+Service定义中的关键字段是ports和selector。
+本例中ports定义部分指定了Service所需的虚拟端口号为8081，由于与Pod容器端口号8080不一样，所以需要在通过targetPort来指定后端Pod的端口。
+selector定义部分设置的是后端Pod所拥有的label: app=webapp
+ 
+（4）目前kubernetes提供了两种负载分发策略：RoundRobin和SessionAffinity
+RoundRobin：轮询模式，即轮询将请求转发到后端的各个Pod上
+SessionAffinity：基于客户端IP地址进行会话保持的模式，第一次客户端访问后端某个Pod，之后的请求都转发到这个Pod上
+默认是RoundRobin模式。
+
+
+
+2、多端口Service
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp
+spec:
+  ports:
+  - name: web
+    port: 8080
+    targetPort: 8080
+  - name: management
+    port: 8005
+    targetPort: 8005
+  selector:
+    app: webapp
+
+备注：不指定type，默认为clusterIP
+
+
+两个端口使用了不同的4层协议，即TCP和UDP
+apiVersion: v1
+kind: Service
+metadata:
+  name: kube-dns
+  namespace: kube-system
+  labels:
+    k8s-app: kube-dns
+    kubernetes.io/cluster-service: "true"
+    kubernetes.io/name: "KubeDNS"
+spec:
+  selector:
+    k8s-app: kube-dns
+  clusterIP: 10.10.10.100
+  ports:
+  - name: dns
+    port: 53
+    protocol: UDP
+  - name: dns-tcp
+    port: 53
+    protocol: TCP
+
+
+3、Headless Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  ports:
+  - port: 80
+  clusterIP: None
+  selector:
+    app: nginx
+
+Lable Secector：
+配置 Selector：对定义了selector 的 Headless Service，Endpoint 控制器在 API 中创建了 Endpoints 记录，并且修改DNS配置返回A记录（地址），通过这个地址直接到达 Service 的后端 Pod上。
+不配置Selector：对没有定义 selector 的 Headless Service，Endpoint控制器不会创建Endpoints记录
+
+
+3、外部服务Service——没有selector的Service
+在某些环境中，应用系统需要将一个外部数据库用为后端服务进行连接，或将另一个集群或Namespace中的服务作为服务的后端，这时可以通过创建一个无Label Selector的Service实现：
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+spec:
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+
+kind: Endpoints
+apiVersion: v1
+metadata:
+  name: my-service
+subsets:
+  - addresses:
+      - ip: 1.2.3.4
+    ports:
+      - port: 9376
+
+
+
+ExternalName Service 是 Service 的特例，它没有 selector，也没有定义任何的端口和 Endpoint。 相反地，对于运行在集群外部的服务，它通过返回该外部服务的别名这种方式来提供服务。
+kind: Service
+apiVersion: v1
+metadata:
+  name: my-service
+  namespace: prod
+spec:
+  type: ExternalName
+  externalName: my.database.example.com
+当查询主机 my-service.prod.svc.CLUSTER时，集群的 DNS 服务将返回一个值为 my.database.example.com 的 CNAME 记录。 访问这个服务的工作方式与其它的相同，唯一不同的是重定向发生在 DNS 层，而且不会进行代理或转发。 如果后续决定要将数据库迁移到 Kubernetes 集群中，可以启动对应的 Pod，增加合适的 Selector 或 Endpoint，修改 Service 的 type。
+
+
+
+
+将容器应用的端口号映射到物理机
+（1）通过设置容器级别的hostPort，将容器应用的端口号映射到物理机上
+文件pod-hostport.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: webapp
+  labels:
+    app: webapp
+spec:
+  containers:
+  - name: webapp
+    image: tomcat
+    ports:
+    - containerPort: 8080
+      hostPort: 8081
+
+（2）通过设置Pod级别的hostNetwork=true，该Pod中所有容器的端口号都将被直接映射到物理机上
+apiVersion: v1
+kind: Pod
+metadata:
+  name: webapp-hostnetwork
+  labels:
+    app: webapp-hostnetwork
+spec:
+  hostNetwork: true
+  containers:
+  - name: webapp-hostnetwork
+    image: tomcat
+    imagePullPolicy: Never
+    ports:
+    - containerPort: 8080
+
+
+将Service的端口号映射到物理机
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-nodeport
+spec:
+  type: NodePort
+  ports:
+  - port: 8090
+    targetPort: 8080
+    nodePort: 8090
+  selector:
+    app: webapp
+
+
+[root@master02 ~]# kubectl get svc
+
+
+*****************************************************************
+12、Ingress
+*****************************************************************
+
+
+参照：traefik文件夹
+eg：https://blog.frognew.com/2018/06/kubernetes-ingress-2.html
+
+
+*****************************************************************
+13、PV/PVC/StorageClass
+*****************************************************************
+
+参照：nfs文件夹
+
+里面有各种例子
+注意StorageClass【动态存储】，要先部署provisioner
+
+eg：https://www.cnblogs.com/00986014w/p/9406962.html
+
+
+
+

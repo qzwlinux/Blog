@@ -1,0 +1,78 @@
+
+*****************************************************************
+******        Kubernetes常用对象【DaemonSet】              ******
+*****************************************************************
+
+
+DaemonSet：
+
+使用 Fluentd 收集日志的例子：
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluentd-elasticsearch
+  namespace: kube-system
+  labels:
+    k8s-app: fluentd-logging
+spec:
+  selector:
+    matchLabels:
+      name: fluentd-elasticsearch
+  template:
+    metadata:
+      labels:
+        name: fluentd-elasticsearch
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      containers:
+      - name: fluentd-elasticsearch
+        image: gcr.io/google-containers/fluentd-elasticsearch:1.20
+        resources:
+          limits:
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: varlog
+        hostPath:
+          path: /var/log
+      - name: varlibdockercontainers
+        hostPath:
+          path: /var/lib/docker/containers
+
+
+滚动更新：
+可以通过 .spec.updateStrategy.type 设置更新策略。目前支持两种策略
+OnDelete：默认策略，更新模板后，只有手动删除了旧的 Pod 后才会创建新的 Pod
+RollingUpdate：更新 DaemonSet 模版后，自动删除旧的 Pod 并创建新的 Pod
+在使用 RollingUpdate 策略时，还可以设置
+.spec.updateStrategy.rollingUpdate.maxUnavailable, 默认 1
+spec.minReadySeconds，默认 0
+
+
+版本回滚：
+# 查询历史版本
+$ kubectl rollout history daemonset <daemonset-name>
+# 查询某个历史版本的详细信息
+$ kubectl rollout history daemonset <daemonset-name> --revision=1
+# 回滚
+$ kubectl rollout undo daemonset <daemonset-name> --to-revision=<revision>
+# 查询回滚状态
+$ kubectl rollout status ds/<daemonset-name>
+
+
+
+
+
+

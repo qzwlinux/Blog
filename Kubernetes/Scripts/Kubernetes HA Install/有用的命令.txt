@@ -1,0 +1,39 @@
+安装NFS：
+/data/nfs/pv0001 192.168.80.0/24(rw,sync)
+/data/nfs/pv0002 192.168.80.0/24(rw,sync)
+/data/nfs/pv0003 192.168.80.0/24(rw,sync)
+/data/nfs/pv0004 192.168.80.0/24(rw,sync)
+/data/nfs/pv0005 192.168.80.0/24(rw,sync)
+
+systemctl start  rpcbind
+systemctl start  nfs
+systemctl enable rpcbind
+systemctl enable nfs
+
+showmount -e 192.168.80.64
+
+
+iptables -S -t nat
+iptables -S -t nat | grep dashboard
+iptables -S -t nat | grep coredns
+
+kubectl get endpoints kube-controller-manager -n kube-system -o yaml
+kubectl get endpoints kube-scheduler -n kube-system -o yaml
+
+journalctl -u apiserver -f
+journalctl -u controller-manager -f
+journalctl -u scheduler -f
+journalctl -u kubelet -f
+journalctl -u kube-proxy -f
+journalctl -u docker -f
+journalctl -u flanneld -f
+
+
+kubectl describe pod podname
+kubectl explain Pod.spec
+kubectl explain Deployment.spec
+
+
+
+
+

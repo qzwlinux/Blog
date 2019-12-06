@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-pv-004
+  namespace: kube-system
+spec:
+  capacity:
+    storage: 7Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    path: /data/nfs/pv004
+    server: 192.168.80.63

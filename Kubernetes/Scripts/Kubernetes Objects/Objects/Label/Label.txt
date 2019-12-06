@@ -1,0 +1,49 @@
+
+*****************************************************************
+******           Kubernetes常用对象【Label】               ******
+*****************************************************************
+
+通过标签查找筛选资源对象，以Pod为例，其它资源对象类似，通过加参数-l
+[root@master02 ~]# kubectl get pods -l environment=production,tier=frontend
+[root@master02 ~]# kubectl get pods -l 'environment in (production),tier in (frontend)'
+[root@master02 ~]# kubectl get pods -l 'environment in (production, qa)'
+[root@master02 ~]# kubectl get pods -l 'environment,environment notin (frontend)'
+
+
+在YAML文件里打标签，以Pod为例，标签可以打多个KV形式，但同一对象上的标签不可以相同：
+apiVersion: v1
+kind: Pod
+metadata:
+  namespace: my-namespace
+  name: pod01
+  labels:
+    app: nginx
+    version: 1.13
+    env:prd
+
+
+通过命令给资源打标签：
+[root@master02 ~]# kubectl label pod pod01 podname=nginx
+[root@master02 ~]# kubectl describe pod pod01
+[root@master02 ~]# kubectl label pod pod01 podname-
+[root@master02 ~]# kubectl describe pod pod01
+
+查看指定Pod的标签情况：
+[root@master02 ~]# kubectl describe pod pod01
+[root@master02 ~]# kubectl get pod pod01 -o yaml
+
+
+给指定Node打标签：
+[root@master02 ~]# kubectl label node node01 sortName=sort01
+[root@master02 ~]# kubectl describe node node01
+[root@master02 ~]# kubectl label node node01 sortName-
+[root@master02 ~]# kubectl describe node node01
+
+查看指定结点的标签情况：
+[root@master02 ~]# kubectl describe node node01
+[root@master02 ~]# kubectl get node node01 -o yaml
+
+
+
+
+

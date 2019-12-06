@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-pvc-006
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs-provisioner
+  resources:
+    requests:
+      storage: 2Gi

@@ -1,0 +1,16 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+    name: nginx-deploy
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name : nginx
+        image: harbor.io/k8s/nginx:1.11
+        ports:
+        - containerPort: 80

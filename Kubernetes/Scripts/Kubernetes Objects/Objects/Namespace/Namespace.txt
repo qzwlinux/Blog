@@ -1,0 +1,44 @@
+
+*****************************************************************
+******          Kubernetes常用对象【namespace】            ******
+*****************************************************************
+
+查看集群所有的Namespace：
+[root@master02 ~]# kubectl get ns
+[root@master02 ~]# kubectl get namespace
+NAME          STATUS   AGE
+default       Active   87d
+kube-public   Active   87d
+kube-system   Active   87d
+搭建集群默认至少有这三个命名空间
+default    ：不指定命名空间，就使用这个，注意是admin权限，如果kubectl或API本身有授权，则是授权的命名空间
+kube-public：集群内部署的一些公共服务，一般部署在这个命名空间
+kube-system：集群本身部署的一些组件，例如CoreDNS，Helm等给整个集群使用的服务则部署些命名空间
+
+
+通过命令创建命名空间：
+[root@master02 ~]# kubectl create namespace my-namespace
+
+通过YAML文件创建：
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: your-namespace
+
+保存为my-namespace.yaml文件
+[root@master02 ~]# kubectl create -f my-namespace.yaml
+[root@master02 ~]# kubectl apply  -f my-namespace.yaml
+两个命令一样，都可以执行
+
+
+删除命名空间：
+[root@master02 ~]# kubectl delete namespaces new-namespace
+
+指定命名空间，查看其它资源对象：
+[root@master02 ~]# kubectl get pods -n kube-system        //指定kube-system命名空间
+[root@master02 ~]# kubectl get pods -n default            //指定default命名空间
+[root@master02 ~]# kubectl get pods --all-namespace       //查看所有命名空间的对象，前提是要有admin权限，不然还是只能看授权的空间
+[root@master02 ~]# kubectl get configmap --all-namespace
+
+

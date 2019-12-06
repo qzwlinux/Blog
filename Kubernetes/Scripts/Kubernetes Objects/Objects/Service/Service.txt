@@ -1,0 +1,190 @@
+
+*****************************************************************
+******        Kubernetes常用对象【Service】                ******
+*****************************************************************
+
+
+1、创建一个基本功能的Service
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp
+spec:
+  ports:
+  - port: 8081
+    targetPort: 8080
+  selector:
+    app: webapp
+
+Service定义中的关键字段是ports和selector。
+本例中ports定义部分指定了Service所需的虚拟端口号为8081，由于与Pod容器端口号8080不一样，所以需要在通过targetPort来指定后端Pod的端口
+selector定义部分设置的是后端Pod所拥有的label: app=webapp
+ 
+（4）目前kubernetes提供了两种负载分发策略：RoundRobin和SessionAffinity
+RoundRobin：轮询模式，即轮询将请求转发到后端的各个Pod上
+SessionAffinity：基于客户端IP地址进行会话保持的模式，第一次客户端访问后端某个Pod，之后的请求都转发到这个Pod上
+默认是RoundRobin模式
+
+
+
+2、多端口Service
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp
+spec:
+  ports:
+  - name: web
+    port: 8080
+    targetPort: 8080
+  - name: management
+    port: 8005
+    targetPort: 8005
+  selector:
+    app: webapp
+
+备注：不指定type，默认为clusterIP
+
+
+两个端口使用了不同的4层协议，即TCP和UDP
+apiVersion: v1
+kind: Service
+metadata:
+  name: kube-dns
+  namespace: kube-system
+  labels:
+    k8s-app: kube-dns
+    kubernetes.io/cluster-service: "true"
+    kubernetes.io/name: "KubeDNS"
+spec:
+  selector:
+    k8s-app: kube-dns
+  clusterIP: 10.10.10.100
+  ports:
+  - name: dns
+    port: 53
+    protocol: UDP
+  - name: dns-tcp
+    port: 53
+    protocol: TCP
+
+
+
+
+
+
+3、Headless Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  ports:
+  - port: 80
+  clusterIP: None
+  selector:
+    app: nginx
+
+Lable Secector：
+配置 Selector：对定义了selector 的 Headless Service，Endpoint 控制器在 API 中创建了 Endpoints 记录，并且修改DNS配置返回A记录（地址），通过这个地址直接到达 Service 的后端 Pod上。
+不配置Selector：对没有定义 selector 的 Headless Service，Endpoint控制器不会创建Endpoints记录
+
+
+3、外部服务Service——没有selector的Service
+在某些环境中，应用系统需要将一个外部数据库用为后端服务进行连接，或将另一个集群或Namespace中的服务作为服务的后端，这时可以通过创建一个无Label Selector的Service实现：
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+spec:
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+
+kind: Endpoints
+apiVersion: v1
+metadata:
+  name: my-service
+subsets:
+  - addresses:
+      - ip: 1.2.3.4
+    ports:
+      - port: 9376
+
+
+
+ExternalName Service 是 Service 的特例，它没有 selector，也没有定义任何的端口和 Endpoint。 相反地，对于运行在集群外部的服务，它通过返回该外部服务的别名这种方式来提供服务。
+kind: Service
+apiVersion: v1
+metadata:
+  name: my-service
+  namespace: prod
+spec:
+  type: ExternalName
+  externalName: my.database.example.com
+当查询主机 my-service.prod.svc.CLUSTER时，集群的 DNS 服务将返回一个值为 my.database.example.com 的 CNAME 记录。 访问这个服务的工作方式与其它的相同，唯一不同的是重定向发生在 DNS 层，而且不会进行代理或转发。 如果后续决定要将数据库迁移到 Kubernetes 集群中，可以启动对应的 Pod，增加合适的 Selector 或 Endpoint，修改 Service 的 type。
+
+
+
+
+将容器应用的端口号映射到物理机
+（1）通过设置容器级别的hostPort，将容器应用的端口号映射到物理机上
+文件pod-hostport.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: webapp
+  labels:
+    app: webapp
+spec:
+  containers:
+  - name: webapp
+    image: tomcat
+    ports:
+    - containerPort: 8080
+      hostPort: 8081
+
+（2）通过设置Pod级别的hostNetwork=true，该Pod中所有容器的端口号都将被直接映射到物理机上
+apiVersion: v1
+kind: Pod
+metadata:
+  name: webapp-hostnetwork
+  labels:
+    app: webapp-hostnetwork
+spec:
+  hostNetwork: true
+  containers:
+  - name: webapp-hostnetwork
+    image: tomcat
+    imagePullPolicy: Never
+    ports:
+    - containerPort: 8080
+
+
+将Service的端口号映射到物理机
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-nodeport
+spec:
+  type: NodePort
+  ports:
+  - port: 8090
+    targetPort: 8080
+    nodePort: 8090
+  selector:
+    app: webapp
+
+[root@master02 ~]# kubectl get svc
+
+
+
+
+
+

@@ -1,0 +1,70 @@
+
+*****************************************************************
+******       Kubernetes常用对象【ResourceQuota】           ******
+*****************************************************************
+
+
+ResourceQuota是资源额度管理的意思，是按命名空间的维度，对指定空间内的资源和对象做整体的限制管理
+从而保证集群的稳定性和可控性，因为各命名空间及用户是做了多租户的，不可感知的，这个是控制准入的一种
+
+通过YAML文件创建资源额度管理：
+[root@master02 ~]# vim my-resourcequota.yaml
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  namespace: my-namespace   //要指定命名空间
+  name: my-resourcequota
+  labels:
+    app: resourcequota
+spec:
+  hard:
+    pods: 10
+    requests.cpu: 2
+    requests.memory: 512Mi
+    limits.cpu: 5
+    limits.memory: 16Gi         //以上几行是资源维度的限制上限，资源的使用不能超过这个总数
+    configmaps: 20
+    persistentvolumeclaims: 20
+    replicationcontrollers: 20
+    secrets: 20
+    services: 50                //以上几行是对象维度的限制上限，创建的对象不能超过这个总数
+
+[root@master02 ~]# kubectl apply -f my-resourcequota.yaml
+[root@master02 ~]# kubectl get ResourceQuota
+[root@master02 ~]# kubectl get ResourceQuota -o yaml
+[root@master02 ~]# kubectl describe ResourceQuota my-resourcequota
+
+备注：
+同一空间可以创建多个名称的ResourceQuota对象，但里面的内部不能冲突，比如上面可以按资源和对象两类创建两个ResourceQuota对象
+
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  namespace: my-namespace
+  name: my-resourcequota01
+  labels:
+    app: resourcequota
+spec:
+  hard:
+    pods: 10
+    requests.cpu: 2
+    requests.memory: 512Mi
+    limits.cpu: 5
+    limits.memory: 16Gi
+
+
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  namespace: my-namespace
+  name: my-resourcequota02
+  labels:
+    app: resourcequota
+spec:
+  hard:
+    configmaps: 20
+    persistentvolumeclaims: 20
+    replicationcontrollers: 20
+    secrets: 20
+    services: 50
+

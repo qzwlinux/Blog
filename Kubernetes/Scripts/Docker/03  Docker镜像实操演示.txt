@@ -1,0 +1,377 @@
+
+03 Docker镜像实操演示：
+
+
+1、查看镜像列表
+$ docker images
+$ docker images -a
+$ docker images nginx
+
+各个参数解析：
+-a :列出本地所有的镜像（含中间映像层，默认情况下，过滤掉中间映像层）
+--digests :显示镜像的摘要信息
+-f :显示满足条件的镜像
+--format :指定返回值的模板文件
+--no-trunc :显示完整的镜像信息
+-q :只显示镜像ID
+
+
+2、删除镜像
+$ docker rmi image name
+$ docker rmi -f image name
+
+
+3、搜索镜像【从Docker Hub中】
+$ docker search tomcat
+$ docker search -s 3 --automated --no-trunc nginx
+
+各个参数解析：
+--automated :只列出automated build类型的镜像
+--no-trunc :显示完整的镜像描述
+-s :列出收藏数不小于指定值的镜像
+
+备注：automated build类型是指仓库通过Dockerfile自动构建出来的镜像
+
+
+4、导出镜像为一个tar文件
+$ docker save -o nginx-1-13.tar nginx:1.13
+$ ls *.tar
+
+
+5、导入tar镜像文件，创建新镜像
+$ docker load -i nginx-1-13.tar
+$ docker images  nginx
+
+save与load互为逆操作
+
+
+6、导出容器文件系统为一个tar文件
+$ docker export -o containername.tar container id
+$ ls *.tar
+
+
+7、导入tar文件，创建新镜像
+$ docker import  nginx-1-13.tar
+$ docker images  nginx
+
+export与import互为逆操作
+导出容器文件系统与镜像的区别是，镜像是只读不可变的，容器文件系统是可能变化了的，是在镜像的基础上加了可读层的
+
+
+8、登录/登出镜像仓库
+$ docker login -u username -p password
+$ docker login harbor.com
+$ docker login harbor.com -u username -p password
+
+$ docker logout
+$ docker logout harbor.com
+
+
+9、拉取镜像
+$ docker pull nginx:1.13
+$ docker pull tomcat:7.0
+
+Docker Hub仓库是免密的，从私有仓库拉取要先登录
+镜像一般要指定镜像版本，如果不指定就是拉取latest的，即最新的
+
+
+10、打镜像标签，重命名
+$ docker tag ubuntu:15.10 my-ubuntu:15.10
+$ docker tag ubuntu:15.10 harbor.io/ubuntu:15.10
+$ docker images
+
+常用于标记本地镜像，提交私有仓库
+
+
+11、提交镜像到仓库
+$ docker push nginx:1.13
+$ docker push tomcat:7.0
+
+默认为Docker Hub，得注册自己的帐号，要先登录
+也可提交到私有仓库，也要先登录，但还有其它约定
+
+
+12、容器与主机之间拷贝文件
+将主机/root/king目录拷贝到容器96f7f14e99ab的/www目录下
+$ docker cp /root/king 96f7f14e99ab:/www/
+
+将主机/root/king目录拷贝到容器96f7f14e99ab中，目录重命名为song
+$ docker cp /root/king 96f7f14e99ab:/song
+
+将容器96f7f14e99ab的/www目录拷贝到主机的/root/temp/目录中
+$ docker cp 96f7f14e99ab:/www /root/temp/
+
+
+13、从容器创建一个新的镜像
+$ docker commit -a "songxiaojin" -m "new commit images" a404c6c174a2  ubuntu:15.11
+$ docker images ubuntu
+
+各个参数解析：
+-a :--author=""  提交的镜像作者
+-m :--message="" 提交时的说明文字
+-p :--pause=true 在commit时，将容器暂停
+默认情况下，在提交时，容器的执行将被暂停，以保证数据的完整性，当然你可以指定选项-p来禁止
+用途：基于现有镜像做稍微修改调整制做镜像，但镜像容量一般会比直接用Dockerfile大
+
+
+14、查看指定镜像的构建历史记录
+$ docker history ubuntu:15.12
+显示镜像构建命令，提交记录等
+
+
+15、使用Dockerfile创建镜像
+
+参照例子实操，dockerfile文件和相关安装包，配置文件在对应的文件夹里
+
+
+1、从零开始制作alpine镜像：
+
+备注：
+scratch是Docker保留镜像，镜像仓库中的任何镜像都不能使用这个名字，使用FROM scratch表明我们要构建镜像中的第一个文件层
+
+Dockerfile:
+
+FROM scratch
+LABEL maintainer="songxiaojin"
+ENV IMAGENAME alpine
+ADD alpine-minirootfs-3.10.1-x86_64.tar.gz /
+CMD ["/bin/sh"]
+
+$ docker build -t alpine:3.10.1 .
+注意：
+是进入当前目录有dockerfile文件目录执行命令，包括要ADD的文件，不然会报错
+
+$ docker build -t alpine:3.10.1 .
+Sending build context to Docker daemon  2.714MB
+Step 1/5 : FROM scratch
+ ---> 
+Step 2/5 : LABEL maintainer="songxiaojin"
+ ---> Running in 438a7b88a790
+Removing intermediate container 438a7b88a790
+ ---> 0204e859fb6a
+Step 3/5 : ENV IMAGENAME alpine
+ ---> Running in 671405aa6557
+Removing intermediate container 671405aa6557
+ ---> 1db7eff08d7b
+Step 4/5 : ADD alpine-minirootfs-3.10.1-x86_64.tar.gz /
+ ---> 7021bce27453
+Step 5/5 : CMD ["/bin/sh"]
+ ---> Running in 38e2d9d91451
+Removing intermediate container 38e2d9d91451
+ ---> 2c2064d91520
+Successfully built 2c2064d91520
+Successfully tagged alpine:3.10.1
+
+$ docker images
+REPOSITORY               TAG                 IMAGE ID            CREATED             SIZE
+alpine                   3.10.1              2c2064d91520        7 seconds ago       5.58MB
+
+$ docker run -it alpine:3.10.1 /bin/sh
+/ #
+/ # echo $IMAGENAME
+alpine
+
+
+
+2、基于alpine镜像构建nginx镜像：
+
+Dockerfile:
+
+FROM alpine:3.10.1
+MAINTAINER songxiaojin
+RUN apk --update add nginx
+RUN ln -sf /dev/stdout /var/log/nginx/access.log \
+    && ln -sf /dev/stderr /var/log/nginx/error.log \
+	&& mkdir /usr/share/nginx \
+	&& mkdir /usr/share/nginx/html
+COPY index.html /usr/share/nginx/html/index.html
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY default.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx","-g","daemon off;"]
+
+$ docker build -t nginx-scratch:1.0 .
+Sending build context to Docker daemon  5.632kB
+Step 1/9 : FROM alpine
+ ---> b7b28af77ffe
+Step 2/9 : MAINTAINER songxiaojin
+ ---> Running in 4d84892273d1
+Removing intermediate container 4d84892273d1
+ ---> 8e13d2f38c70
+Step 3/9 : RUN apk --update add nginx
+ ---> Running in 00f1431a1140
+fetch http://dl-cdn.alpinelinux.org/alpine/v3.10/main/x86_64/APKINDEX.tar.gz
+fetch http://dl-cdn.alpinelinux.org/alpine/v3.10/community/x86_64/APKINDEX.tar.gz
+(1/2) Installing pcre (8.43-r0)
+(2/2) Installing nginx (1.16.0-r2)
+Executing nginx-1.16.0-r2.pre-install
+Executing busybox-1.30.1-r2.trigger
+OK: 7 MiB in 16 packages
+Removing intermediate container 00f1431a1140
+ ---> ca8b0351fe01
+Step 4/9 : RUN ln -sf /dev/stdout /var/log/nginx/access.log     && ln -sf /dev/stderr /var/log/nginx/error.log 	&& mkdir /usr/share/nginx 	&& mkdir /usr/share/nginx/html
+ ---> Running in 871b02132ef8
+Removing intermediate container 871b02132ef8
+ ---> f788fddc1da4
+Step 5/9 : COPY index.html /usr/share/nginx/html/index.html
+ ---> 1a01c50d3a07
+Step 6/9 : COPY nginx.conf /etc/nginx/nginx.conf
+ ---> a4be59c121fb
+Step 7/9 : COPY default.conf /etc/nginx/conf.d/default.conf
+ ---> c72e2dfd008f
+Step 8/9 : EXPOSE 80
+ ---> Running in 4f5dcb10dd00
+Removing intermediate container 4f5dcb10dd00
+ ---> be580c95bad1
+Step 9/9 : CMD ["nginx","-g","daemon off;"]
+ ---> Running in 0732f7ab0b8e
+Removing intermediate container 0732f7ab0b8e
+ ---> dabe88e17e70
+Successfully built dabe88e17e70
+Successfully tagged nginx-scratch:1.0
+
+$ docker images
+REPOSITORY               TAG                 IMAGE ID            CREATED             SIZE
+nginx-scratch            1.0                 dabe88e17e70        3 minutes ago       8.44MB
+
+$ docker run -itd -p 20000:80 nginx-scratch:1.0
+f0c7845d91817fb3c4748d3b3bd6a75c05fd131b7813e63588745755a5e3d038
+
+浏览器打开 http://192.168.80.44:20000/
+
+
+3、构建centos镜像：
+
+https://github.com/moby/moby/blob/master/contrib/mkimage-yum.sh
+
+具体步骤：
+1、安装一台linux操作系统：如centos7.3
+2、配置好对应版本的本地yum源、
+3、另存为修改后的脚本到主机
+4、chmod 755 mkiimage-yum.sh
+5、./mkimage-yum.sh -y ./etc/yum.conf -p net-tools* centos-base
+6、docker images
+
+$ docker images
+REPOSITORY               TAG                 IMAGE ID            CREATED             SIZE
+centos-base              7.6.1810            7e5423682458        31 minutes ago      281MB
+$ docker run -it centos-base:7.6.1810 /bin/bash
+
+
+
+4、构建jdk镜像：
+
+$ docker build -t jdk:8u141 .
+Sending build context to Docker daemon  185.5MB
+Step 1/10 : FROM harbor.io/k8s/centos:6.6
+ ---> 368c96d786ae
+Step 2/10 : MAINTAINER songxiaojin
+ ---> Running in 0f220ea3fc7a
+Removing intermediate container 0f220ea3fc7a
+ ---> 350a34074b1e
+Step 3/10 : WORKDIR /usr
+ ---> Running in e08b0136d2a8
+Removing intermediate container e08b0136d2a8
+ ---> 72ac9e0b3e1f
+Step 4/10 : RUN mkdir  /usr/local/java
+ ---> Running in 0e3fb13a7875
+Removing intermediate container 0e3fb13a7875
+ ---> 44986c945309
+Step 5/10 : ADD jdk-8u141-linux-x64.tar.gz /usr/local/java/
+ ---> a62bc3f9baaf
+Step 6/10 : RUN ln -s /usr/local/java/jdk1.8.0_141 /usr/local/java/jdk
+ ---> Running in 8716cccb64b5
+Removing intermediate container 8716cccb64b5
+ ---> 194c7fd5bdf9
+Step 7/10 : ENV JAVA_HOME /usr/local/java/jdk1.8.0_141
+ ---> Running in ac560d2828c2
+Removing intermediate container ac560d2828c2
+ ---> b93f7c53ceed
+Step 8/10 : ENV JRE_HOME $JAVA_HOME/jre
+ ---> Running in e5af1f4aa0d6
+Removing intermediate container e5af1f4aa0d6
+ ---> b819992ba44d
+Step 9/10 : ENV CLASSPATH $JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar:$JRE_HOME/lib:$CLASSPATH
+ ---> Running in 455dacbd4a96
+Removing intermediate container 455dacbd4a96
+ ---> da2f896e5efa
+Step 10/10 : ENV PATH $JAVA_HOME/bin:$PATH
+ ---> Running in 6769cbc2c416
+Removing intermediate container 6769cbc2c416
+ ---> 21f971106f41
+Successfully built 21f971106f41
+Successfully tagged jdk:8u141
+
+$ docker images
+REPOSITORY               TAG                 IMAGE ID            CREATED             SIZE
+jdk                      8u141               21f971106f41        7 seconds ago       579MB
+
+$ docker run -it jdk:8u141 /bin/bash
+[root@67a8ca3680c9 usr]# java -version
+java version "1.8.0_141"
+Java(TM) SE Runtime Environment (build 1.8.0_141-b15)
+Java HotSpot(TM) 64-Bit Server VM (build 25.141-b15, mixed mode)
+
+
+
+5、构建tomcat镜像：
+
+
+$ docker build -t tomcat:8.5.43 .
+Sending build context to Docker daemon   9.72MB
+Step 1/10 : FROM jdk:8u141
+ ---> 21f971106f41
+Step 2/10 : MAINTAINER songxiaojin
+ ---> Running in 17bcf97ca0f8
+Removing intermediate container 17bcf97ca0f8
+ ---> be95d1857432
+Step 3/10 : WORKDIR /usr
+ ---> Running in 9bffa7eccdbc
+Removing intermediate container 9bffa7eccdbc
+ ---> b4eec30da163
+Step 4/10 : RUN mkdir  /usr/local/tomcat
+ ---> Running in 3caaf54de676
+Removing intermediate container 3caaf54de676
+ ---> c12a28de95c0
+Step 5/10 : ADD apache-tomcat-8.5.43.tar.gz /usr/local/tomcat/
+ ---> 451bbd5e3d19
+Step 6/10 : RUN ln -s /usr/local/tomcat/apache-tomcat-8.5.43 /usr/local/tomcat/tomcat
+ ---> Running in 90ece1ac7caf
+Removing intermediate container 90ece1ac7caf
+ ---> 4435f537d647
+Step 7/10 : ENV CATALINA_HOME /usr/local/tomcat/apache-tomcat-8.5.43
+ ---> Running in d7526ee8cdc2
+Removing intermediate container d7526ee8cdc2
+ ---> 6d826f3a461d
+Step 8/10 : ENV PATH $PATH:$CATALINA_HOME/bin
+ ---> Running in 3af1e08a3132
+Removing intermediate container 3af1e08a3132
+ ---> 895e14e8347b
+Step 9/10 : EXPOSE 8080
+ ---> Running in f923e1406964
+Removing intermediate container f923e1406964
+ ---> fb249422dcd5
+Step 10/10 : CMD ["/usr/local/tomcat/tomcat/bin/catalina.sh","run"]
+ ---> Running in ef241dee7ce0
+Removing intermediate container ef241dee7ce0
+ ---> 35fa47a7c77e
+Successfully built 35fa47a7c77e
+Successfully tagged tomcat:8.5.43
+
+$ docker images
+REPOSITORY               TAG                 IMAGE ID            CREATED             SIZE
+tomcat                   8.5.43              35fa47a7c77e        16 seconds ago      593MB
+
+$ docker run -itd -p 8080:8080 tomcat:8.5.43
+
+浏览器打开 http://192.168.80.44:8080/
+
+
+
+
+
+
+
+
+
+

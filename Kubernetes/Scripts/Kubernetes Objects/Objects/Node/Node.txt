@@ -1,0 +1,49 @@
+
+*****************************************************************
+******           Kubernetes常用对象【Node】                ******
+*****************************************************************
+
+
+查看集群所有Node结点，即负载结点：
+[root@master02 ~]# kubectl get nodes
+NAME     STATUS   ROLES    AGE   VERSION
+node01   Ready    <none>   80d   v1.12.2
+node02   Ready    <none>   80d   v1.12.2
+node03   Ready    <none>   80d   v1.12.2
+node04   Ready    <none>   80d   v1.12.2
+
+
+查看指定结点的详情情况：
+[root@master02 ~]# kubectl describe node node01
+[root@master02 ~]# kubectl get node node01 -o yaml
+
+
+给指定Node打标签：
+[root@master02 ~]# kubectl label node node01 sortName=sort01
+[root@master02 ~]# kubectl describe node node01
+[root@master02 ~]# kubectl label node node01 sortName-
+[root@master02 ~]# kubectl describe node node01
+
+
+给指定Node打污点：
+[root@master02 ~]# kubectl taint node node1 runService=efk:NoSchedule
+[root@master02 ~]# kubectl taint node node1 runService=efk:NoExecute
+[root@master02 ~]# kubectl taint node node1 notService=nginx:NoSchedule
+[root@master02 ~]# kubectl taint node node1 notService=nginx:NoExecute
+[root@master02 ~]# kubectl describe node node01
+
+[root@master02 ~]# kubectl taint node node1 runService:NoSchedule-
+[root@master02 ~]# kubectl taint node node1 notService:NoExecute-
+[root@master02 ~]# kubectl taint node node1 runService-
+[root@master02 ~]# kubectl describe node node01
+
+
+Node维护模式：
+[root@master02 ~]# kubectl cordon   node02
+[root@master02 ~]# kubectl uncordon node02
+[root@master02 ~]# kubectl drain    node02
+说明：
+cordon    设置结点不可调度
+uncordon  设置结点可调度
+drain     结点结点维护状态，期间驱赶Pod到其它结点
+

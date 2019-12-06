@@ -1,0 +1,44 @@
+
+*****************************************************************
+******           Kubernetes常用对象【LimitRange】                ******
+*****************************************************************
+
+
+LimitRange也是做资源额度管理的，是按命名空间的维度，对指定空间内的各对象的使用资源做个体的限制管理
+从而保证业务部署的配置标准化，管理限制，不符合的不能部署成功，这个也是控制准入的一种
+
+
+通过YAML文件创建资源额度管理：
+[root@master02 ~]# vim my-limitrange.yaml
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: my-limitrange
+spec:
+  limits:
+  - max:
+      cpu: "2"
+      memory: 1Gi
+    min:
+      cpu: 200m
+      memory: 6Mi
+    type: Pod
+  - default:
+      cpu: 300m
+      memory: 200Mi
+    defaultRequest:
+      cpu: 200m
+      memory: 100Mi
+    max:
+      cpu: "2"
+      memory: 1Gi
+    min:
+      cpu: 100m
+      memory: 3Mi
+    type: Container
+
+[root@master02 ~]# kubectl apply -f my-limitrange.yaml
+[root@master02 ~]# kubectl get LimitRange
+[root@master02 ~]# kubectl get LimitRange -o yaml
+[root@master02 ~]# kubectl describe LimitRange my-limitrange
+
