@@ -2,8 +2,9 @@
 
 ## 了解BIOS配置并进行性能调整
 
+[BIOS性能调优原文](https://community.mellanox.com/s/article/understanding-bios-configuration-for-performance-tuning)
 
-## [**优化调整示例**](https://community.mellanox.com/s/article/bios-performance-tuning-example)
+[优化调整示例](https://community.mellanox.com/s/article/bios-performance-tuning-example)
 
 
 1. Power - 能耗等级
