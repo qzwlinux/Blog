@@ -56,3 +56,28 @@ NDR|NextDataRate|1000Gb/s
 
 ### [Linux系统调优](./Linux_systctl_tuning.md)
 
+
+## Infiniband性能测试
+
+下面的文章将向您介绍OFED的性能测试（perftest）程序包
+
+perftest软件包包含一组带宽和延迟基准
+
+InfiniBand / RoCE
+
+- [ib_send_bw](./ib_send_bw.md)
+- [ib_send_lat](./ib_send_lat.md)
+- [ib_write_bw](./ib_write_bw.md)
+- [ib_write_lat](./ib_write_lat.md)
+- [ib_read_bw](./ib_read_bw.md)
+- [ib_read_lat](./ib_read_lat.md)
+- [ib_atomic_bw](./ib_atomic_bw.md)
+- [ib_atomic_lat](./ib_atomic_lat.md)
+
+本机以太网
+
+- [raw_ethernet_bw](./raw_ethernet_bw.md)
+- [raw_ethernet_lat](./raw_ethernet_lat.md)
+- [raw_ethernet_burst_lat](./raw_ethernet_burst_lat.md)
+
+
