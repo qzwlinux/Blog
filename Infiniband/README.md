@@ -56,6 +56,9 @@ NDR|NextDataRate|1000Gb/s
 
 ### [Linux系统调优](./Linux_systctl_tuning.md)
 
+### [Rivermax Linux性能调优](https://community.mellanox.com/s/article/rivermax-linux-performance-tuning-guide--1-x)
+
+### [如何使用mlnx_tune工具调整Linux服务器以获得最佳性能](https://community.mellanox.com/s/article/How-to-Tune-Your-Linux-Server-for-Best-Performance-Using-the-mlnx-tune-Tool)
 
 ## Infiniband性能测试
 
@@ -81,3 +84,45 @@ InfiniBand / RoCE
 - [raw_ethernet_burst_lat](./raw_ethernet_burst_lat.md)
 
 
+[**划重点Performance**](https://community.mellanox.com/s/article/howto-enable--verify-and-troubleshoot-rdma
+)
+## Nvme
+
+### [Ethtool](https://community.mellanox.com/s/article/understanding-mlx5-ethtool-counters)
+
+### ip link & ifconfig
+
+ip link和ifconfig是网络设备配置和监视工具。
+
+- 所有ip链接和ifconfig监视和配置均适用于RDMA。
+- 其他相关的监视和配置工具：
+    - gids-使用show_gids工具（[**info**](https://community.mellanox.com/s/article/understanding-show-gids-script)）
+    - ib info-使用ibv_devinfo（[**手册页**](./ibv_info.md)）
+    - rdma计数器，包括拥塞控制-在/sys/class/infiniband/和/sys/class/net位置下（[[**info**](https://community.mellanox.com/s/article/understanding-mlx5-linux-counters-and-status-parameters)）
+    - 拥塞配置-存储在设备的非易失性内存中。如果需要调优，建议寻求Mellanox支持。可以在[**这里**](https://community.mellanox.com/s/article/dcqcn-parameters)找到说明。
+    - ibdev2netdev 此命令查看卡对应网卡名
+
+### tcpdump 以及 RDMA测试
+
+转储网络流量：
+
+注意：对于RDMA，请使用ibdump（[**info**](https://community.mellanox.com/s/article/howto-enable--verify-and-troubleshoot-rdma)）
+
+### iperf3
+测试网络吞吐量。
+
+注：对于RDMA，请使用ib_send_bw（[**info**](https://community.mellanox.com/s/article/ib-send-bw)）和ib_send_lat（[**info**](https://community.mellanox.com/s/article/ib-send-lat)）
+
+### netstat/ss
+打印网络连接，路由表，接口统计信息，伪装连接和多播成员身份。
+
+笔记：
+
+- 大部分netstat信息适用于RoCE
+- 对于开放的RDMA socket，请使用rdmatool（[**info**](http://man7.org/linux/man-pages/man8/rdma.8.html)）
+
+### lldptool/dcbtool
+
+管理lldpad（IEEE/CEE）的LLDP设置和状态。
+
+处理lldptool-pfc（用于无损网络）（[**info**](https://linux.die.net/man/8/lldptool-pfc)）

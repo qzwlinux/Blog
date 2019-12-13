@@ -1,5 +1,7 @@
 # 如何调整AMD服务器（EYPC CPU）以获得最佳性能
 
+[**link**](https://community.mellanox.com/s/article/how-to-tune-an-amd-server--eypc-cpu--for-maximum-performance)
+
 ## 验证系统配置
 
 在进行CPU调整之前，我们必须检查NUMA节点配置，并验证我们的服务器是否实际在运行AMD CPU：
